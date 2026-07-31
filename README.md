@@ -1,129 +1,289 @@
 # sshw
 
-![GitHub](https://img.shields.io/github/license/yinheli/sshw) ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/yinheli/sshw)
+[![Release](https://img.shields.io/github/v/release/lkkone/sshw)](https://github.com/lkkone/sshw/releases/latest)
+[![Build](https://github.com/lkkone/sshw/actions/workflows/build.yml/badge.svg)](https://github.com/lkkone/sshw/actions/workflows/build.yml)
+[![License](https://img.shields.io/github/license/lkkone/sshw)](LICENSE)
 
-ssh client wrapper for automatic login.
+`sshw` is an interactive SSH and SFTP connection manager for the terminal.
+Keep hosts, groups, aliases, credentials, and jump hosts in one place, then
+connect without repeatedly typing long SSH commands.
 
-![usage](./assets/sshw-demo.gif)
-
-## install
-
-use `go get`
-
-```
-go install github.com/yinheli/sshw/cmd/sshw@latest
-```
-
-or download binary from [releases](https://github.com/lkkone/sshw/releases).
-
-## sftp
-
-Use the same host configuration and selector to start an interactive SFTP session:
+The same host selector and configuration are shared by both modes:
 
 ```bash
-sshw -f
+sshw          # open an SSH session
+sshw -f       # open an interactive SFTP session
 ```
 
-You can also connect directly by alias or load hosts from `~/.ssh/config`:
+## Highlights
+
+- Interactive host selector with keyboard navigation and search
+- Direct connection by a short alias
+- Nested host groups and jump hosts
+- Password, private-key, SSH agent, and keyboard-interactive authentication
+- Import from `~/.ssh/config`
+- Interactive SFTP with progress, history, and Tab completion
+- Recursive and resumable SFTP transfers
+- Safe overwrite handling that protects the existing destination file
+- Linux, macOS, Windows, FreeBSD, OpenBSD, and Solaris builds
+
+## Installation
+
+### Download a release
+
+The recommended method is to download the package for your system from the
+[latest release](https://github.com/lkkone/sshw/releases/latest).
+
+Choose the archive that matches your operating system and CPU:
+
+| System | Common package |
+| --- | --- |
+| macOS on Apple Silicon | `sshw_*_darwin_arm64.tar.gz` |
+| macOS on Intel | `sshw_*_darwin_amd64.tar.gz` |
+| Linux x86-64 | `sshw_*_linux_amd64.tar.gz` |
+| Linux ARM64 | `sshw_*_linux_arm64.tar.gz` |
+| Windows x86-64 | `sshw_*_windows_amd64.zip` |
+
+On macOS or Linux, extract the archive and place the binary somewhere in your
+`PATH`:
 
 ```bash
-sshw -f dev
-sshw -s -f
-sshw -s -f dev
+tar -xzf sshw_*.tar.gz
+sudo install sshw /usr/local/bin/sshw
+sshw -version
 ```
 
-The SFTP prompt supports:
+Windows users can extract `sshw.exe` from the ZIP archive and add its directory
+to `PATH`.
+
+Each release also contains `sshw_*_checksums.txt` for verifying downloads.
+
+### Build from source
+
+Building from source requires Go 1.25 or newer:
+
+```bash
+git clone https://github.com/lkkone/sshw.git
+cd sshw
+go build -o sshw ./cmd/sshw
+sudo install sshw /usr/local/bin/sshw
+```
+
+## Quick start
+
+Create `~/.sshw`:
+
+```yaml
+- name: Development
+  alias: dev
+  host: 192.168.1.10
+  user: root
+  port: 22
+  keypath: ~/.ssh/id_ed25519
+
+- name: Production
+  alias: prod
+  host: 192.168.1.20
+  user: deploy
+```
+
+Open the host selector:
+
+```bash
+sshw
+```
+
+Connect directly using an alias:
+
+```bash
+sshw dev
+```
+
+While selecting a host:
+
+- Use the arrow keys or `j`/`k` to move
+- Press Enter to select
+- Press `/` to search
+- Press `Ctrl+C` to cancel
+
+## SSH usage
 
 ```text
-pwd, lpwd, ls, lls, cd, lcd
-get [-f] [-r] <remote> [local]
-reget [-f] <remote> [local]
-put [-f] [-r] <local> [remote]
-reput [-f] <local> [remote]
-mkdir, rm, rmdir, rename
-help, exit
+sshw                    Select a host and connect with SSH
+sshw <alias>            Connect directly by alias
+sshw -s                 Select a host from ~/.ssh/config
+sshw -s <alias>         Connect to an alias from ~/.ssh/config
+sshw -version           Show version information
+sshw -help              Show command-line options
 ```
 
-The interactive prompt supports command history with the up/down arrow keys,
-command-name completion with Tab, and live upload/download progress.
+## SFTP usage
 
-Use `get -r` or `put -r` to transfer directory trees. Symbolic links are
-skipped, empty directories are preserved, and each regular file uses the same
-safe commit behavior as a single-file transfer.
+Add `-f` to use the same host selection and authentication flow with SFTP:
 
-Interrupted transfers preserve a deterministic `.sshw.part` file and its
-`.meta` record. Resume them with `reget` or `reput`. Before appending any data,
-sshw verifies the source size, modification time, source fingerprint, and the
-existing partial-file prefix. A changed source or mismatched partial file is
-rejected instead of producing a corrupted result.
+```text
+sshw -f                 Select a host and start SFTP
+sshw -f <alias>         Start SFTP directly by alias
+sshw -s -f              Select a host from ~/.ssh/config and start SFTP
+sshw -s -f <alias>      Start SFTP for an alias from ~/.ssh/config
+```
 
-Downloads and uploads use temporary files and only rename them into place after
-the transfer completes. Existing files are preserved unless `-f` is supplied to
-the `get` or `put` command. Remote overwrites use the server's atomic POSIX
-rename extension when available. On servers without that extension, sshw backs
-up the original before committing the uploaded file and reports the backup path
-if the operation cannot be completed or rolled back.
+### SFTP commands
 
-## config
+| Command | Description |
+| --- | --- |
+| `pwd` / `lpwd` | Show the remote/local working directory |
+| `ls [path]` / `lls [path]` | List remote/local files |
+| `cd <path>` / `lcd <path>` | Change the remote/local directory |
+| `get [-f] <remote> [local]` | Download a file |
+| `put [-f] <local> [remote]` | Upload a file |
+| `get -r [-f] <remote> [local]` | Download a directory recursively |
+| `put -r [-f] <local> [remote]` | Upload a directory recursively |
+| `reget [-f] <remote> [local]` | Resume an interrupted download |
+| `reput [-f] <local> [remote]` | Resume an interrupted upload |
+| `mkdir <path>` | Create a remote directory |
+| `rm <path>` | Remove a remote file |
+| `rmdir <path>` | Remove an empty remote directory |
+| `rename <old> <new>` | Rename a remote path |
+| `help` | Show available commands |
+| `exit` / `quit` | Close the SFTP session |
 
-config file load in following order:
+The SFTP prompt supports command history with the up/down arrow keys,
+command-name completion with Tab, and live transfer progress. Recursive
+transfers display one aggregate directory progress indicator instead of
+printing a progress bar for every file.
 
-- `~/.sshw`
-- `~/.sshw.yml`
-- `~/.sshw.yaml`
-- `./.sshw`
-- `./.sshw.yml`
-- `./.sshw.yaml`
+### Resume and overwrite behavior
 
-config example:
+Interrupted transfers leave a `.sshw.part` file and a small `.meta` record.
+Use `reget` or `reput` to continue the transfer. Before resuming, sshw checks
+that the source and partial data still match, preventing a changed file from
+being combined with stale data.
 
-<!-- prettier-ignore -->
+Existing destination files are not overwritten unless `-f` is supplied.
+Transfers write to a temporary file first and rename it only after all data has
+arrived. When a server does not support atomic POSIX rename, sshw temporarily
+backs up the existing remote file and attempts an immediate rollback if the
+replacement fails.
+
+Recursive transfers merge into existing directories. The `-f` option is only
+required when an individual destination file already exists.
+
+## Configuration
+
+sshw loads the first configuration file it finds in this order:
+
+1. `~/.sshw`
+2. `~/.sshw.yml`
+3. `~/.sshw.yaml`
+4. `./.sshw`
+5. `./.sshw.yml`
+6. `./.sshw.yaml`
+
+### Hosts, groups, and aliases
+
 ```yaml
-- { name: dev server fully configured, user: appuser, host: 192.168.8.35, port: 22, password: 123456 }
-- { name: dev server with key path, user: appuser, host: 192.168.8.35, port: 22, keypath: /root/.ssh/id_rsa }
-- { name: dev server with passphrase key, user: appuser, host: 192.168.8.35, port: 22, keypath: /root/.ssh/id_rsa, passphrase: abcdefghijklmn}
-- { name: dev server without port, user: appuser, host: 192.168.8.35 }
-- { name: dev server without user, host: 192.168.8.35 }
-- { name: dev server without password, host: 192.168.8.35 }
-- { name: ⚡️ server with emoji name, host: 192.168.8.35 }
-- { name: server with alias, alias: dev, host: 192.168.8.35 }
-- name: server with jump
+- name: Development
+  alias: dev
   user: appuser
   host: 192.168.8.35
   port: 22
-  password: 123456
+  keypath: ~/.ssh/id_ed25519
+
+- name: Servers
+  children:
+    - name: Application 1
+      alias: app-1
+      user: root
+      host: 192.168.8.41
+    - name: Application 2
+      alias: app-2
+      user: root
+      host: 192.168.8.42
+```
+
+`name` is shown in the selector. `alias` is optional and lets you connect
+directly with commands such as `sshw app-1` or `sshw -f app-1`.
+
+The defaults are `root` for `user` and `22` for `port`.
+
+### Authentication
+
+```yaml
+- name: Private key
+  host: 192.168.8.35
+  user: appuser
+  keypath: ~/.ssh/id_ed25519
+  passphrase: optional-key-passphrase
+
+- name: SSH agent
+  host: 192.168.8.36
+  user: appuser
+  agentpath: /path/to/ssh-agent.sock
+
+- name: Password
+  host: 192.168.8.37
+  user: appuser
+  password: optional-password
+```
+
+Authentication methods are attempted in this order:
+
+1. Configured SSH agent
+2. Configured private key
+3. `~/.ssh/id_rsa`
+4. Configured password
+5. Interactive password or keyboard prompt
+
+For shared configuration files, prefer keys or an SSH agent instead of storing
+passwords and passphrases as plain text.
+
+### Jump hosts
+
+```yaml
+- name: Internal application
+  alias: internal
+  user: deploy
+  host: 10.0.2.15
   jump:
-  - user: appuser
-    host: 192.168.8.36
-    port: 2222
-
-
-# server group 1
-- name: server group 1
-  children:
-  - { name: server 1, user: root, host: 192.168.1.2 }
-  - { name: server 2, user: root, host: 192.168.1.3 }
-  - { name: server 3, user: root, host: 192.168.1.4 }
-
-# server group 2
-- name: server group 2
-  children:
-  - { name: server 1, user: root, host: 192.168.2.2 }
-  - { name: server 2, user: root, host: 192.168.3.3 }
-  - { name: server 3, user: root, host: 192.168.4.4 }
+    - name: Bastion
+      user: jumpuser
+      host: bastion.example.com
+      port: 22
+      keypath: ~/.ssh/id_ed25519
 ```
 
-# callback
+Multiple entries under `jump` create a multi-hop connection chain. Jump hosts
+work for both SSH and SFTP.
 
-<!-- prettier-ignore -->
+### Use `~/.ssh/config`
+
+Pass `-s` to load hosts from the standard OpenSSH configuration:
+
+```bash
+sshw -s
+sshw -s my-host
+sshw -s -f my-host
+```
+
+### SSH callback commands
+
+SSH sessions can send commands immediately after login:
+
 ```yaml
-- name: dev server fully configured
-  user: appuser
+- name: Application shell
+  alias: app
+  user: deploy
   host: 192.168.8.35
-  port: 22
-  password: 123456
   callback-shells:
-    - { cmd: 2 }
-    - { delay: 1500, cmd: 0 }
-    - { cmd: "echo 1" }
+    - cmd: "cd /srv/application"
+    - delay: 300
+      cmd: "clear"
 ```
+
+`delay` is measured in milliseconds. Callback commands apply to interactive
+SSH sessions, not SFTP sessions.
+
+## License
+
+[MIT](LICENSE)
