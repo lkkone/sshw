@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "sshw 运行时架构",
+    "subtitle": "单进程 Go CLI：配置发现、主机选择、多源认证、跳板连接与交互式 SSH 会话",
+    "output": "sshw-runtime-architecture.html",
+    "visual_preset": "blueprint",
+    "animation": "none",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/lkkone/sshw",
+      "revision": "748eaa6bd2c142bfae0fb8bc3dd0caf1113bfc04"
+    },
+    "viewBox": [1880, 900],
+    "views": [
+      {
+        "id": "startup",
+        "label": "启动与主机选择",
+        "focus": ["operator", "cli", "config_sources", "host_selector"],
+        "note": "CLI 从 YAML 或 OpenSSH 配置构建主机树，再通过别名或交互菜单选择目标。"
+      },
+      {
+        "id": "authentication",
+        "label": "认证组装",
+        "focus": ["host_selector", "auth_builder", "credential_sources"],
+        "note": "认证按 agent、指定私钥、默认私钥、密码、键盘交互的顺序组合。"
+      },
+      {
+        "id": "connection",
+        "label": "直连或跳板",
+        "focus": ["ssh_connector", "jump_host", "target_sshd"],
+        "note": "目标可直接连接，也可先登录首个 Jump 节点，再通过其 TCP 通道连接目标。"
+      },
+      {
+        "id": "session",
+        "label": "交互会话",
+        "focus": ["operator", "session_runtime", "target_sshd", "runtime_loops"],
+        "note": "PTY 会话桥接本地标准输入输出，并并行执行回调命令、窗口同步和 SSH 保活。"
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [70, 120],
+    "cols": 7,
+    "gapX": 90,
+    "gapY": 105,
+    "cellW": 170,
+    "cellH": 76
+  },
+  "components": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "用户终端",
+      "sublabel": "stdin / stdout / stderr",
+      "row": 1,
+      "col": 0,
+      "sources": [
+        {"path": "client.go", "line": 280, "end_line": 334, "label": "本地终端桥接"}
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "frontend",
+      "label": "sshw CLI",
+      "sublabel": "flags、启动编排",
+      "tag": "单进程",
+      "row": 1,
+      "col": 1,
+      "sources": [
+        {"path": "cmd/sshw/main.go", "line": 43, "end_line": 93, "label": "进程入口"}
+      ]
+    },
+    {
+      "id": "config_sources",
+      "type": "database",
+      "label": "主机配置源",
+      "sublabel": "~/.sshw* 或 ~/.ssh/config",
+      "row": 0,
+      "col": 1,
+      "sources": [
+        {"path": "config.go", "line": 75, "end_line": 151, "label": "配置加载"}
+      ]
+    },
+    {
+      "id": "host_selector",
+      "type": "backend",
+      "label": "主机选择器",
+      "sublabel": "alias 或 promptui 主机树",
+      "row": 1,
+      "col": 2,
+      "sources": [
+        {"path": "cmd/sshw/main.go", "line": 76, "end_line": 145, "label": "别名与交互选择"}
+      ]
+    },
+    {
+      "id": "auth_builder",
+      "type": "security",
+      "label": "认证配置构建器",
+      "sublabel": "ssh.ClientConfig",
+      "row": 1,
+      "col": 3,
+      "sources": [
+        {"path": "client.go", "line": 158, "end_line": 204, "label": "认证方法与算法"}
+      ]
+    },
+    {
+      "id": "credential_sources",
+      "type": "external",
+      "label": "凭据来源",
+      "sublabel": "Agent、私钥、密码、交互输入",
+      "row": 0,
+      "col": 3,
+      "sources": [
+        {"path": "client.go", "line": 55, "end_line": 156, "label": "认证来源"}
+      ]
+    },
+    {
+      "id": "ssh_connector",
+      "type": "backend",
+      "label": "SSH 连接器",
+      "sublabel": "TCP + x/crypto/ssh",
+      "row": 1,
+      "col": 4,
+      "sources": [
+        {"path": "client.go", "line": 216, "end_line": 267, "label": "连接建立"}
+      ]
+    },
+    {
+      "id": "jump_host",
+      "type": "security",
+      "label": "跳板机 SSHD",
+      "sublabel": "首个 Jump 节点",
+      "row": 0,
+      "col": 5,
+      "sources": [
+        {"path": "client.go", "line": 224, "end_line": 243, "label": "跳板通道"}
+      ]
+    },
+    {
+      "id": "target_sshd",
+      "type": "external",
+      "label": "目标主机 SSHD",
+      "sublabel": "TCP :22（默认）",
+      "row": 1,
+      "col": 5,
+      "sources": [
+        {"path": "client.go", "line": 220, "end_line": 267, "label": "目标连接"}
+      ]
+    },
+    {
+      "id": "session_runtime",
+      "type": "frontend",
+      "label": "交互式 PTY 会话",
+      "sublabel": "xterm + Shell + 本地 I/O",
+      "row": 1,
+      "col": 6,
+      "sources": [
+        {"path": "client.go", "line": 273, "end_line": 337, "label": "PTY 与 Shell"}
+      ]
+    },
+    {
+      "id": "runtime_loops",
+      "type": "backend",
+      "label": "会话后台循环",
+      "sublabel": "回调、窗口同步、保活",
+      "row": 2,
+      "col": 6,
+      "sources": [
+        {"path": "client.go", "line": 321, "end_line": 369, "label": "会话维护"}
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "远端 SSH 信任边界",
+      "wraps": ["jump_host", "target_sshd"]
+    }
+  ],
+  "connections": [
+    {"id": "launch", "from": "operator", "to": "cli", "variant": "emphasis"},
+    {"id": "load_config", "from": "config_sources", "to": "cli"},
+    {"id": "select_host", "from": "cli", "to": "host_selector", "label": "主机树"},
+    {"id": "selected_node", "from": "host_selector", "to": "auth_builder", "label": "Node"},
+    {"id": "supply_credentials", "from": "credential_sources", "to": "auth_builder", "variant": "security"},
+    {"id": "configured_client", "from": "auth_builder", "to": "ssh_connector", "label": "ClientConfig", "variant": "security"},
+    {"id": "direct_ssh", "from": "ssh_connector", "to": "target_sshd", "variant": "emphasis"},
+    {"id": "proxy_login", "from": "ssh_connector", "to": "jump_host", "variant": "dashed"},
+    {"id": "proxy_tunnel", "from": "jump_host", "to": "target_sshd", "variant": "security"},
+    {"id": "open_session", "from": "target_sshd", "to": "session_runtime", "label": "PTY / Shell", "variant": "emphasis"},
+    {"id": "maintain_session", "from": "runtime_loops", "to": "session_runtime", "variant": "dashed"}
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进程模型",
+      "items": [
+        "sshw 是本机上的单个 Go CLI 进程",
+        "配置和凭据在连接建立前读入",
+        "SSH 会话期间启动多个 goroutine 维护交互"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "连接路径",
+      "items": [
+        "默认直接拨号目标 SSHD",
+        "配置 Jump 时仅使用列表中的首个跳板节点",
+        "跳板机通过 SSH client.Dial 建立到目标的 TCP 通道"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "安全事实",
+      "items": [
+        "支持 Agent、私钥、密码和键盘交互认证",
+        "主机密钥回调当前使用 InsecureIgnoreHostKey",
+        "连接超时为 10 秒，并追加兼容密码套件"
+      ]
+    }
+  ]
+}
