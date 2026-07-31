@@ -4,7 +4,7 @@
 project_name: sshw
 
 metadata:
-  homepage: https://github.com/sshw/sshw
+  homepage: https://github.com/lkkone/sshw
   license: MIT
   maintainers:
     - "yinheli <me@yinheli.com>"
