@@ -6,5 +6,4 @@ data
 dist
 build
 *.test
-sshw-runtime-architecture.html
-sshw-runtime-architecture.archify.json
+.DS_Store

@@ -1,12 +1,42 @@
-# sshw
+# sshw 多端配置同步增强版
 
-[![Release](https://img.shields.io/github/v/release/lkkone/sshw)](https://github.com/lkkone/sshw/releases/latest)
+[![Edition](https://img.shields.io/badge/edition-multi--device%20sync-7c3aed)](https://github.com/lkkone/sshw/tree/codex/sshw-enhancement)
 [![Build](https://github.com/lkkone/sshw/actions/workflows/build.yml/badge.svg)](https://github.com/lkkone/sshw/actions/workflows/build.yml)
 [![License](https://img.shields.io/github/license/lkkone/sshw)](LICENSE)
 
-`sshw` is an interactive SSH and SFTP connection manager for the terminal.
-Keep hosts, groups, aliases, credentials, and jump hosts in one place, then
-connect without repeatedly typing long SSH commands.
+This branch is the **multi-device configuration synchronization edition** of
+`sshw`. It adds a self-hosted Web configuration center, visual editing,
+configuration import, version publishing, device tokens, and safe local
+synchronization while retaining all SSH and SFTP features from the main tool.
+
+It is maintained on the
+[`codex/sshw-enhancement`](https://github.com/lkkone/sshw/tree/codex/sshw-enhancement)
+branch and uses independent `sync-vX.Y.Z` prereleases. It does not replace the
+main `vX.Y.Z` release line. If you only need the original SSH/SFTP tool, use
+the [`master`](https://github.com/lkkone/sshw/tree/master) branch instead.
+
+## Configuration center: three-step deployment
+
+```bash
+git clone --branch codex/sshw-enhancement \
+  https://github.com/lkkone/sshw.git
+cd sshw
+cp .env.example .env
+docker compose up -d --build
+```
+
+The copied `.env` is ready to use without editing. Open
+`http://<server-ip>:9110`, then obtain the randomly generated initial
+administrator password with:
+
+```bash
+docker compose logs sshw-config
+```
+
+The database, encryption key, and generated password persist in the
+`sshw-config-data` Docker volume.
+
+## Original SSH/SFTP client
 
 The same host selector and configuration are shared by both modes:
 
@@ -32,8 +62,10 @@ sshw -f       # open an interactive SFTP session
 
 ### Download a release
 
-The recommended method is to download the package for your system from the
-[latest release](https://github.com/lkkone/sshw/releases/latest).
+Download a `sync-vX.Y.Z` package from the
+[Releases page](https://github.com/lkkone/sshw/releases) and verify that its
+title says **多端配置同步增强版**. The repository's `Latest` badge intentionally
+continues to point to the main tool, so do not use that badge for this edition.
 
 Choose the archive that matches your operating system and CPU:
 
@@ -66,6 +98,7 @@ Building from source requires Go 1.25 or newer:
 ```bash
 git clone https://github.com/lkkone/sshw.git
 cd sshw
+git switch codex/sshw-enhancement
 go build -o sshw ./cmd/sshw
 sudo install sshw /usr/local/bin/sshw
 ```
@@ -153,29 +186,37 @@ Plain HTTP is rejected except for localhost. For local development:
 
 ```bash
 sshw sync init \
-  --server http://127.0.0.1:8080 \
+  --server http://127.0.0.1:9110 \
   --token sshw_sync_xxxxxxxxxxxxxxxxx \
   --allow-insecure
 ```
 
 ### Run the configuration center
 
-Docker Compose is included in the repository:
+Docker Compose is included in the repository. Clone this branch and run:
 
 ```bash
 cp .env.example .env
-openssl rand -base64 32
-```
-
-Put the generated value in `.env` as `SSHW_MASTER_KEY`, choose a strong
-`SSHW_ADMIN_PASSWORD`, then start the service:
-
-```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-Open `http://127.0.0.1:8080`, sign in, add hosts or groups, save the draft, and
+Open `http://127.0.0.1:9110`. The first start generates a random administrator
+password and encryption key and persists both in the same Docker volume as the
+database. Read the initial credentials with:
+
+```bash
+docker compose logs sshw-config
+```
+
+If the initial log is no longer available, retrieve the persisted password:
+
+```bash
+docker compose exec sshw-config sh -c \
+  'cat /data/secrets/admin-password'
+```
+
+Sign in, add hosts or groups, save the draft, and
 publish the first version. Create a token from **Sync devices** for each
 computer that should receive the configuration.
 
@@ -186,17 +227,24 @@ current draft or append the imported entries, review the generated YAML, and
 then save and publish when ready. Importing alone never changes the saved or
 published configuration.
 
-The SQLite database is stored in the `sshw-config-data` Docker volume. Passwords,
-passphrases, drafts, and published YAML are encrypted before they are written
-to the database. Device tokens are stored as one-way hashes.
+The SQLite database, generated master key, and generated administrator password
+are stored in the `sshw-config-data` Docker volume. Rebuilding or replacing the
+container keeps them intact. Passwords, passphrases, drafts, and published YAML
+are encrypted before they are written to the database. Device tokens are
+stored as one-way hashes.
+
+The copied `.env` works without any changes. To customize the port, bind
+address, credentials, time zone, or build proxy, edit only the values you need.
+Values supplied in `.env` take precedence over automatic generation. Docker
+Compose can also start without `.env`, using the same defaults.
 
 For an Internet-facing deployment:
 
 - Put the service behind HTTPS using Caddy, Nginx, or another reverse proxy
-- Use a randomly generated master key and strong administrator password
+- Keep the generated administrator password private, or set your own in `.env`
 - Keep `.env` out of source control
 - Back up the Docker volume and master key together
-- Do not expose port `8080` directly when a reverse proxy is available
+- Do not expose port `9110` directly when a reverse proxy is available
 
 Changing or losing `SSHW_MASTER_KEY` makes existing encrypted data unreadable,
 so store it in a secure backup or Docker secret.

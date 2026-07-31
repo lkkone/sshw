@@ -5,6 +5,19 @@ GitHub prereleases. This keeps them separate from the main sshw `vX.Y.Z`
 release line and prevents them from replacing the main project's latest
 release.
 
+## Unreleased
+
+### Deployment
+
+- Deploy by copying `.env.example` to `.env`, optionally editing it, and
+  running `docker compose up -d --build`
+- Use host port `9110` by default
+- Generate and persist a random administrator password and encryption key on
+  first startup when no `.env` overrides are supplied
+- Keep the SQLite database and generated secrets in the stable
+  `sshw-config-data` Docker volume
+- Remove generated Archify runtime-diagram artifacts from the deployable branch
+
 ## sync-v1.0.1
 
 Fixes local configuration drift detection.

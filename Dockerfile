@@ -16,6 +16,7 @@ RUN apk add --no-cache ca-certificates tzdata \
     && chown -R sshw:sshw /data
 
 COPY --from=build /out/sshw-server /usr/local/bin/sshw-server
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 USER sshw
 VOLUME ["/data"]
@@ -24,4 +25,5 @@ EXPOSE 8080
 ENV SSHW_SERVER_ADDR=:8080
 ENV SSHW_DATABASE_PATH=/data/sshw.db
 
-ENTRYPOINT ["/usr/local/bin/sshw-server"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/usr/local/bin/sshw-server"]

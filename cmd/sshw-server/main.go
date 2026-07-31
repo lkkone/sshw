@@ -19,9 +19,9 @@ func main() {
 	address := envOrDefault("SSHW_SERVER_ADDR", ":8080")
 	databasePath := envOrDefault("SSHW_DATABASE_PATH", "/data/sshw.db")
 	adminUsername := envOrDefault("SSHW_ADMIN_USERNAME", "admin")
-	adminPassword := strings.TrimSpace(os.Getenv("SSHW_ADMIN_PASSWORD"))
-	if adminPassword == "" {
-		log.Fatal("SSHW_ADMIN_PASSWORD is required")
+	adminPassword, err := loadSecret("SSHW_ADMIN_PASSWORD", "SSHW_ADMIN_PASSWORD_FILE")
+	if err != nil {
+		log.Fatal(err)
 	}
 	masterKey, err := loadSecret("SSHW_MASTER_KEY", "SSHW_MASTER_KEY_FILE")
 	if err != nil {
