@@ -224,7 +224,8 @@ func (r *SyncRunner) pull(args []string) error {
 		state.ETag != "" &&
 		state.Server == settings.Server &&
 		state.Profile == settings.Profile &&
-		state.LocalPath == target {
+		state.LocalPath == target &&
+		localConfigMatchesState(target, state) {
 		req.Header.Set("If-None-Match", state.ETag)
 	}
 
@@ -324,8 +325,16 @@ func (r *SyncRunner) status(args []string) error {
 	}
 	remoteVersion, _ := strconv.Atoi(resp.Header.Get("X-SSHW-Version"))
 	fmt.Fprintf(r.Out, "Local version:  %d\nRemote version: %d\n", state.Version, remoteVersion)
-	if state.Version == remoteVersion && state.ETag != "" {
+	target, expandErr := homedir.Expand(settings.Target)
+	localMatches := expandErr == nil &&
+		state.Server == settings.Server &&
+		state.Profile == settings.Profile &&
+		state.LocalPath == target &&
+		localConfigMatchesState(target, state)
+	if state.Version == remoteVersion && state.ETag != "" && localMatches {
 		fmt.Fprintln(r.Out, "Status: up to date")
+	} else if state.Version == remoteVersion && state.ETag != "" && !localMatches {
+		fmt.Fprintln(r.Out, "Status: local configuration changed; sync required")
 	} else {
 		fmt.Fprintln(r.Out, "Status: update available")
 	}
@@ -447,6 +456,23 @@ func readSyncState(path string) (syncState, error) {
 		return syncState{}, err
 	}
 	return state, nil
+}
+
+func localConfigMatchesState(path string, state syncState) bool {
+	if strings.TrimSpace(state.SHA256) == "" {
+		return false
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return false
+	}
+	return strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), state.SHA256)
 }
 
 func writeSyncState(path string, state syncState) error {

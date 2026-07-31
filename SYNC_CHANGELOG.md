@@ -5,6 +5,18 @@ GitHub prereleases. This keeps them separate from the main sshw `vX.Y.Z`
 release line and prevents them from replacing the main project's latest
 release.
 
+## sync-v1.0.1
+
+Fixes local configuration drift detection.
+
+### Fixed
+
+- Verify the current target file's SHA-256 before sending a cached ETag
+- Download and restore the published configuration when the local file was
+  edited, deleted, or no longer matches the last synchronized content
+- Report `local configuration changed; sync required` from `sshw sync status`
+  when the remote version is unchanged but the local file has drifted
+
 ## sync-v1.0.0
 
 First multi-device configuration synchronization release.

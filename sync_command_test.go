@@ -23,6 +23,7 @@ func TestSyncRunnerDownloadsBacksUpAndCachesVersion(t *testing.T) {
 	newConfig := []byte("- name: New host\n  alias: new\n  host: 10.0.0.2\n")
 	sum := sha256.Sum256(newConfig)
 	var requests atomic.Int32
+	var conditionalRequests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		if r.Header.Get("Authorization") != "Bearer test-token" {
@@ -30,6 +31,7 @@ func TestSyncRunnerDownloadsBacksUpAndCachesVersion(t *testing.T) {
 			return
 		}
 		if r.Header.Get("If-None-Match") == `"default-v2"` {
+			conditionalRequests.Add(1)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
@@ -94,6 +96,31 @@ func TestSyncRunnerDownloadsBacksUpAndCachesVersion(t *testing.T) {
 	if requests.Load() != 2 {
 		t.Fatalf("request count = %d, want 2", requests.Load())
 	}
+	if conditionalRequests.Load() != 1 {
+		t.Fatalf("conditional request count = %d, want 1", conditionalRequests.Load())
+	}
+
+	locallyModified := []byte("- name: Local edit\n  host: 10.0.0.99\n")
+	if err := os.WriteFile(target, locallyModified, 0600); err != nil {
+		t.Fatal(err)
+	}
+	output.Reset()
+	if err := runner.Run([]string{"--config", configPath}); err != nil {
+		t.Fatalf("sync after local edit failed: %v\n%s", err, output.String())
+	}
+	got, _ = os.ReadFile(target)
+	if !bytes.Equal(got, newConfig) {
+		t.Fatalf("target after local edit = %q, want %q", got, newConfig)
+	}
+	if strings.Contains(output.String(), "already up to date") {
+		t.Fatalf("local edit was incorrectly treated as current: %s", output.String())
+	}
+	if requests.Load() != 3 {
+		t.Fatalf("request count after local edit = %d, want 3", requests.Load())
+	}
+	if conditionalRequests.Load() != 1 {
+		t.Fatalf("local edit sent a stale ETag; conditional request count = %d, want 1", conditionalRequests.Load())
+	}
 }
 
 func TestSyncRunnerDoesNotReplaceConfigWhenRemoteIsInvalid(t *testing.T) {
@@ -138,6 +165,63 @@ func TestSyncRunnerDoesNotReplaceConfigWhenRemoteIsInvalid(t *testing.T) {
 	got, _ := os.ReadFile(target)
 	if !bytes.Equal(got, original) {
 		t.Fatalf("local configuration changed: %q", got)
+	}
+}
+
+func TestSyncStatusReportsLocallyModifiedConfiguration(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Fatalf("method = %s, want HEAD", r.Method)
+		}
+		w.Header().Set("X-SSHW-Version", "2")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	home := t.TempDir()
+	target := filepath.Join(home, ".sshw")
+	if err := os.WriteFile(target, []byte("- name: Local edit\n  host: 10.0.0.99\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(home, ".sshw-sync.yaml")
+	settings := SyncSettings{
+		Version:         1,
+		Server:          server.URL,
+		Profile:         "default",
+		Token:           "test-token",
+		Target:          target,
+		Backup:          true,
+		BackupRetention: 5,
+	}
+	data, _ := yaml.Marshal(settings)
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSyncState(syncStatePath(configPath), syncState{
+		Server:    server.URL,
+		Profile:   "default",
+		ETag:      `"default-v2"`,
+		Version:   2,
+		SHA256:    strings.Repeat("0", sha256.Size*2),
+		LocalPath: target,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	runner := &SyncRunner{
+		In:         strings.NewReader(""),
+		Out:        &output,
+		ErrOut:     &output,
+		HTTPClient: server.Client(),
+		HomeDir:    home,
+		Now:        time.Now,
+	}
+	if err := runner.Run([]string{"status", "--config", configPath}); err != nil {
+		t.Fatalf("sync status failed: %v\n%s", err, output.String())
+	}
+	if !strings.Contains(output.String(), "local configuration changed; sync required") {
+		t.Fatalf("unexpected status output: %s", output.String())
 	}
 }
 
