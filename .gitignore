@@ -15,5 +15,9 @@
 # Misc
 /dist
 .idea
+.DS_Store
+.understand-anything/
+.env
+/data
 
 !.goreleaser.yml

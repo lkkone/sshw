@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>sshw Config Center</title>
+  <meta name="description" content="Manage and publish SSH and SFTP host configuration for sshw.">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <section id="loginView" class="login-shell">
+    <div class="login-card">
+      <button class="language-toggle login-language" type="button" aria-label="Switch language">EN</button>
+      <div class="login-wordmark">sshw</div>
+      <p class="eyebrow">SSHW CONFIG CENTER</p>
+      <h1>Your connections,<br>in one trusted place.</h1>
+      <p class="login-copy">Edit hosts visually, review the generated YAML, then publish a version every computer can pull safely.</p>
+      <form id="loginForm" class="login-form">
+        <label>
+          <span>Username</span>
+          <input id="loginUsername" autocomplete="username" value="admin" required>
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="loginPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <p id="loginError" class="form-error" role="alert"></p>
+        <button class="button primary wide" type="submit">Sign in</button>
+      </form>
+      <p class="secure-note"><span>●</span> Credentials stay on your server</p>
+    </div>
+  </section>
+
+  <main id="appView" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div>
+          <strong>sshw</strong>
+          <span>Config Center</span>
+        </div>
+      </div>
+      <div class="topbar-center">
+        <span class="profile-dot"></span>
+        <span>Profile</span>
+        <strong id="profileName">default</strong>
+      </div>
+      <div class="topbar-actions">
+        <button class="language-toggle" type="button" aria-label="Switch language">EN</button>
+        <span id="draftState" class="save-state">Saved</span>
+        <button id="saveButton" class="button secondary">Save draft</button>
+        <button id="publishButton" class="button primary">Publish</button>
+        <button id="logoutButton" class="icon-button" title="Sign out" aria-label="Sign out">↪</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <div>
+            <p class="eyebrow">CONNECTIONS</p>
+            <h2>Host library</h2>
+          </div>
+          <span id="hostCount" class="count-pill">0</span>
+        </div>
+
+        <div class="add-row">
+          <button id="addHostButton" class="button compact secondary">＋ Host</button>
+          <button id="addGroupButton" class="button compact ghost">＋ Group</button>
+        </div>
+
+        <div id="treeEmpty" class="tree-empty">
+          <span>⌁</span>
+          <strong>No connections yet</strong>
+          <p>Add your first host or group to begin.</p>
+        </div>
+        <nav id="hostTree" class="host-tree" aria-label="Host configuration"></nav>
+
+        <div class="sidebar-lower">
+          <button id="importButton" class="sidebar-link">
+            <span>⇧</span>
+            <span>Import configuration</span>
+            <strong>YAML</strong>
+          </button>
+          <button id="devicesButton" class="sidebar-link active">
+            <span>⌁</span>
+            <span>Sync devices</span>
+            <strong id="deviceCount">0</strong>
+          </button>
+          <button id="historyButton" class="sidebar-link">
+            <span>↶</span>
+            <span>Version history</span>
+            <strong id="versionCount">0</strong>
+          </button>
+        </div>
+      </aside>
+
+      <section class="editor-panel">
+        <div id="emptyEditor" class="empty-editor">
+          <div class="empty-orbit"><span>⌁</span></div>
+          <p class="eyebrow">READY WHEN YOU ARE</p>
+          <h2>Select a connection</h2>
+          <p>Choose a host from the left, or create one to start building your shared configuration.</p>
+          <button id="emptyAddHostButton" class="button primary">Create first host</button>
+        </div>
+
+        <div id="nodeEditor" class="hidden">
+          <div class="editor-heading">
+            <div>
+              <div class="breadcrumb"><span>Connections</span><b>/</b><span id="nodeBreadcrumb">Host</span></div>
+              <h1 id="editorTitle">New host</h1>
+              <p id="editorSubtitle">Connection details and authentication</p>
+            </div>
+            <div class="node-actions">
+              <button id="moveUpButton" class="icon-button" title="Move up">↑</button>
+              <button id="moveDownButton" class="icon-button" title="Move down">↓</button>
+              <button id="deleteNodeButton" class="icon-button danger" title="Delete">×</button>
+            </div>
+          </div>
+
+          <form id="editorForm" class="editor-form">
+            <section class="form-section">
+              <div class="section-title">
+                <span>01</span>
+                <div><h3>Identity</h3><p>How this entry appears in sshw.</p></div>
+              </div>
+              <div class="field-grid">
+                <label class="field span-2">
+                  <span>Display name <b>*</b></span>
+                  <input data-field="name" placeholder="Production API">
+                </label>
+                <label class="field host-only">
+                  <span>Alias</span>
+                  <input data-field="alias" placeholder="prod-api">
+                  <small>Use with <code id="aliasCommand">sshw prod-api</code></small>
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section host-only">
+              <div class="section-title">
+                <span>02</span>
+                <div><h3>Connection</h3><p>Remote endpoint used by SSH and SFTP.</p></div>
+              </div>
+              <div class="field-grid">
+                <label class="field span-2">
+                  <span>Hostname or IP <b>*</b></span>
+                  <input data-field="host" placeholder="10.0.2.15">
+                </label>
+                <label class="field">
+                  <span>User</span>
+                  <input data-field="user" placeholder="root">
+                </label>
+                <label class="field">
+                  <span>Port</span>
+                  <input data-field="port" type="number" min="1" max="65535" placeholder="22">
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section host-only">
+              <div class="section-title">
+                <span>03</span>
+                <div><h3>Authentication</h3><p>Leave secrets empty to use an interactive prompt.</p></div>
+              </div>
+              <div class="field-grid">
+                <label class="field span-2">
+                  <span>Private key path</span>
+                  <input data-field="keypath" placeholder="~/.ssh/id_ed25519">
+                </label>
+                <label class="field span-2">
+                  <span>SSH agent socket</span>
+                  <input data-field="agentpath" placeholder="$SSH_AUTH_SOCK">
+                </label>
+                <label class="field secret-field">
+                  <span>Password</span>
+                  <div><input data-field="password" type="password" autocomplete="new-password"><button type="button" data-toggle-secret="password">Show</button></div>
+                </label>
+                <label class="field secret-field">
+                  <span>Key passphrase</span>
+                  <div><input data-field="passphrase" type="password" autocomplete="new-password"><button type="button" data-toggle-secret="passphrase">Show</button></div>
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section host-only">
+              <div class="section-title">
+                <span>04</span>
+                <div><h3>Jump hosts</h3><p>Optional ordered hops before the destination.</p></div>
+                <button id="addJumpButton" type="button" class="button compact ghost">＋ Add hop</button>
+              </div>
+              <div id="jumpList" class="nested-list"></div>
+            </section>
+
+            <section class="form-section host-only">
+              <div class="section-title">
+                <span>05</span>
+                <div><h3>After login</h3><p>Commands sent when an interactive SSH shell opens.</p></div>
+                <button id="addCallbackButton" type="button" class="button compact ghost">＋ Add command</button>
+              </div>
+              <div id="callbackList" class="nested-list"></div>
+            </section>
+
+            <section class="form-section group-only">
+              <div class="section-title">
+                <span>02</span>
+                <div><h3>Group members</h3><p>Organize hosts and nested groups together.</p></div>
+              </div>
+              <div class="group-actions">
+                <button id="addChildHostButton" type="button" class="button secondary">＋ Add host</button>
+                <button id="addChildGroupButton" type="button" class="button ghost">＋ Add nested group</button>
+              </div>
+            </section>
+          </form>
+        </div>
+      </section>
+
+      <aside class="preview-panel">
+        <div class="preview-heading">
+          <div>
+            <p class="eyebrow">GENERATED CONFIG</p>
+            <h2>YAML preview</h2>
+          </div>
+          <div class="preview-actions">
+            <button id="togglePreviewSecrets" type="button" class="preview-secret-toggle">Show secrets</button>
+            <span id="validationBadge" class="validation-badge waiting">Waiting</span>
+          </div>
+        </div>
+        <pre id="yamlPreview">[]
+</pre>
+        <div id="validationMessage" class="validation-message">Add a host to generate a valid configuration.</div>
+        <div class="preview-stats">
+          <div><strong id="statHosts">0</strong><span>Hosts</span></div>
+          <div><strong id="statGroups">0</strong><span>Groups</span></div>
+          <div><strong id="statAliases">0</strong><span>Aliases</span></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="createNodeDialog" class="modal">
+    <form id="createNodeForm" method="dialog">
+      <button class="modal-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">NEW CONNECTION</p>
+      <h2 id="createNodeTitle">Add host</h2>
+      <p id="createNodeDescription">Enter the essentials first. You can add authentication and advanced options afterwards.</p>
+      <div class="field-grid modal-field-grid">
+        <label class="field span-2">
+          <span>Display name <b>*</b></span>
+          <input id="createNodeName" maxlength="120" placeholder="Production API">
+        </label>
+        <label class="field create-host-field">
+          <span>Alias</span>
+          <input id="createNodeAlias" placeholder="prod-api">
+        </label>
+        <label class="field create-host-field">
+          <span>User</span>
+          <input id="createNodeUser" placeholder="root">
+        </label>
+        <label class="field span-2 create-host-field">
+          <span>Hostname or IP <b>*</b></span>
+          <input id="createNodeHost" placeholder="10.0.2.15">
+        </label>
+        <label class="field create-host-field">
+          <span>Port</span>
+          <input id="createNodePort" type="number" min="1" max="65535" value="22">
+        </label>
+      </div>
+      <p id="createNodeError" class="form-error" role="alert"></p>
+      <div class="modal-actions">
+        <button id="cancelCreateNodeButton" class="button ghost" type="button">Cancel</button>
+        <button id="confirmCreateNodeButton" class="button primary" type="submit">Add host</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="importDialog" class="modal wide-modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">IMPORT CONFIGURATION</p>
+      <h2>Import an existing sshw file</h2>
+      <p>Select your current <code>~/.sshw</code> or another YAML file. It will be validated and opened as an unsaved draft for review.</p>
+      <label id="importDropZone" class="import-drop-zone">
+        <input id="importFileInput" type="file">
+        <span class="import-icon">⇧</span>
+        <strong>Choose a configuration file</strong>
+        <small>or drag and drop it here · up to 10 MB</small>
+        <code id="importFileName" class="hidden"></code>
+      </label>
+      <fieldset class="import-mode">
+        <legend>How should it be imported?</legend>
+        <label>
+          <input type="radio" name="importMode" value="replace" checked>
+          <span><strong>Replace current draft</strong><small>Best for moving an existing ~/.sshw into the configuration center.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="importMode" value="append">
+          <span><strong>Append to current list</strong><small>Keep current entries and add everything from this file.</small></span>
+        </label>
+      </fieldset>
+      <p id="importError" class="form-error" role="alert"></p>
+      <div class="modal-actions">
+        <button class="button ghost" value="cancel">Cancel</button>
+        <button id="confirmImportButton" class="button primary" type="button" disabled>Validate and import</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="publishDialog" class="modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">PUBLISH CONFIGURATION</p>
+      <h2>Make this version available?</h2>
+      <p>Connected computers will receive it the next time they run <code>sshw sync</code>.</p>
+      <label class="field">
+        <span>Release note</span>
+        <textarea id="publishNote" rows="3" placeholder="Added production hosts"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button class="button ghost" value="cancel">Cancel</button>
+        <button id="confirmPublishButton" class="button primary" value="default">Publish version</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="devicesDialog" class="modal wide-modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">SYNC ACCESS</p>
+      <h2>Connected devices</h2>
+      <p>Create a read-only token for each computer. Revoking one device does not affect the others.</p>
+      <div class="create-device">
+        <input id="deviceName" placeholder="Office MacBook">
+        <button id="createDeviceButton" type="button" class="button primary">Create token</button>
+      </div>
+      <div id="tokenReveal" class="token-reveal hidden">
+        <span>Copy this token now — it will not be shown again.</span>
+        <code id="newToken"></code>
+        <button id="copyTokenButton" type="button" class="button compact secondary">Copy token</button>
+      </div>
+      <div id="deviceList" class="device-list"></div>
+    </form>
+  </dialog>
+
+  <dialog id="historyDialog" class="modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">PUBLISHED VERSIONS</p>
+      <h2>Version history</h2>
+      <div id="historyList" class="history-list"></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

@@ -25,6 +25,7 @@ sshw -f       # open an interactive SFTP session
 - Interactive SFTP with progress, history, and Tab completion
 - Recursive and resumable SFTP transfers
 - Safe overwrite handling that protects the existing destination file
+- Optional self-hosted configuration center for one-command device sync
 - Linux, macOS, Windows, FreeBSD, OpenBSD, and Solaris builds
 
 ## Installation
@@ -105,6 +106,100 @@ While selecting a host:
 - Press Enter to select
 - Press `/` to search
 - Press `Ctrl+C` to cancel
+
+## Configuration sync
+
+sshw includes an optional self-hosted configuration center. It provides a
+visual Web editor, generated YAML preview, draft and published versions,
+version history, Chinese and English interfaces, and a separate read-only
+token for every computer. The Web interface defaults to Simplified Chinese
+and remembers the selected language.
+
+Multi-device synchronization enhancements use a separate `sync-vX.Y.Z`
+release line. These releases are published as prereleases so they do not
+replace or conflict with the main sshw `vX.Y.Z` release line.
+
+The server is the single source of truth. The CLI never uploads local changes:
+
+```bash
+sshw sync
+```
+
+The command checks the latest published version, validates its checksum and
+YAML structure, backs up the current configuration, and safely replaces
+`~/.sshw`. A failed request or invalid remote configuration never changes the
+working local file.
+
+### Connect a computer
+
+Create a device token in the Web interface, then initialize the computer:
+
+```bash
+sshw sync init \
+  --server https://sshw.example.com \
+  --token sshw_sync_xxxxxxxxxxxxxxxxx
+```
+
+This creates `~/.sshw-sync.yaml` with permission `0600`. After that:
+
+```text
+sshw sync               Download the latest published configuration
+sshw sync status        Compare the local and remote versions
+sshw sync --dry-run     Download and validate without replacing ~/.sshw
+sshw sync --force       Download again even when the version is unchanged
+```
+
+Plain HTTP is rejected except for localhost. For local development:
+
+```bash
+sshw sync init \
+  --server http://127.0.0.1:8080 \
+  --token sshw_sync_xxxxxxxxxxxxxxxxx \
+  --allow-insecure
+```
+
+### Run the configuration center
+
+Docker Compose is included in the repository:
+
+```bash
+cp .env.example .env
+openssl rand -base64 32
+```
+
+Put the generated value in `.env` as `SSHW_MASTER_KEY`, choose a strong
+`SSHW_ADMIN_PASSWORD`, then start the service:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+Open `http://127.0.0.1:8080`, sign in, add hosts or groups, save the draft, and
+publish the first version. Create a token from **Sync devices** for each
+computer that should receive the configuration.
+
+To migrate an existing configuration, choose **Import configuration** and
+select the current `~/.sshw` file or another YAML file. The server validates
+the complete file before opening it as an unsaved draft. You can replace the
+current draft or append the imported entries, review the generated YAML, and
+then save and publish when ready. Importing alone never changes the saved or
+published configuration.
+
+The SQLite database is stored in the `sshw-config-data` Docker volume. Passwords,
+passphrases, drafts, and published YAML are encrypted before they are written
+to the database. Device tokens are stored as one-way hashes.
+
+For an Internet-facing deployment:
+
+- Put the service behind HTTPS using Caddy, Nginx, or another reverse proxy
+- Use a randomly generated master key and strong administrator password
+- Keep `.env` out of source control
+- Back up the Docker volume and master key together
+- Do not expose port `8080` directly when a reverse proxy is available
+
+Changing or losing `SSHW_MASTER_KEY` makes existing encrypted data unreadable,
+so store it in a secure backup or Docker secret.
 
 ## SSH usage
 

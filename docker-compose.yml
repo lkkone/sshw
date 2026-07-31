@@ -1,0 +1,28 @@
+services:
+  sshw-config:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GOPROXY: "${GOPROXY:-https://proxy.golang.org,direct}"
+    image: sshw-config:local
+    restart: unless-stopped
+    ports:
+      - "${SSHW_PORT:-8080}:8080"
+    environment:
+      SSHW_ADMIN_USERNAME: "${SSHW_ADMIN_USERNAME:-admin}"
+      SSHW_ADMIN_PASSWORD: "${SSHW_ADMIN_PASSWORD:?set SSHW_ADMIN_PASSWORD in .env}"
+      SSHW_MASTER_KEY: "${SSHW_MASTER_KEY:?set SSHW_MASTER_KEY in .env}"
+      SSHW_DEFAULT_PROFILE: "${SSHW_DEFAULT_PROFILE:-default}"
+      TZ: "${TZ:-Asia/Shanghai}"
+    volumes:
+      - sshw-config-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  sshw-config-data:

@@ -44,6 +44,14 @@ func findAlias(nodes []*sshw.Node, nodeAlias string) *sshw.Node {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "sync" {
+		if err := sshw.RunSyncCommand(os.Args[2:]); err != nil {
+			log.Error(err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	flag.Parse()
 	if !flag.Parsed() {
 		flag.Usage()

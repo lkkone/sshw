@@ -16,23 +16,23 @@ import (
 )
 
 type Node struct {
-	Name           string           `yaml:"name"`
-	Alias          string           `yaml:"alias"`
-	Host           string           `yaml:"host"`
-	User           string           `yaml:"user"`
-	Port           int              `yaml:"port"`
-	KeyPath        string           `yaml:"keypath"`
-	AgentPath      string           `yaml:"agentpath"`
-	Passphrase     string           `yaml:"passphrase"`
-	Password       string           `yaml:"password"`
-	CallbackShells []*CallbackShell `yaml:"callback-shells"`
-	Children       []*Node          `yaml:"children"`
-	Jump           []*Node          `yaml:"jump"`
+	Name           string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Alias          string           `json:"alias,omitempty" yaml:"alias,omitempty"`
+	Host           string           `json:"host,omitempty" yaml:"host,omitempty"`
+	User           string           `json:"user,omitempty" yaml:"user,omitempty"`
+	Port           int              `json:"port,omitempty" yaml:"port,omitempty"`
+	KeyPath        string           `json:"keypath,omitempty" yaml:"keypath,omitempty"`
+	AgentPath      string           `json:"agentpath,omitempty" yaml:"agentpath,omitempty"`
+	Passphrase     string           `json:"passphrase,omitempty" yaml:"passphrase,omitempty"`
+	Password       string           `json:"password,omitempty" yaml:"password,omitempty"`
+	CallbackShells []*CallbackShell `json:"callback-shells,omitempty" yaml:"callback-shells,omitempty"`
+	Children       []*Node          `json:"children,omitempty" yaml:"children,omitempty"`
+	Jump           []*Node          `json:"jump,omitempty" yaml:"jump,omitempty"`
 }
 
 type CallbackShell struct {
-	Cmd   string        `yaml:"cmd"`
-	Delay time.Duration `yaml:"delay"`
+	Cmd   string        `json:"cmd,omitempty" yaml:"cmd,omitempty"`
+	Delay time.Duration `json:"delay,omitempty" yaml:"delay,omitempty"`
 }
 
 func (n *Node) String() string {
