@@ -18,6 +18,7 @@ var (
 	V     = flag.Bool("version", false, "show version")
 	H     = flag.Bool("help", false, "show help")
 	S     = flag.Bool("s", false, "use local ssh config '~/.ssh/config'")
+	F     = flag.Bool("f", false, "use sftp mode")
 
 	log = sshw.GetLogger()
 
@@ -34,7 +35,9 @@ func findAlias(nodes []*sshw.Node, nodeAlias string) *sshw.Node {
 			return node
 		}
 		if len(node.Children) > 0 {
-			return findAlias(node.Children, nodeAlias)
+			if found := findAlias(node.Children, nodeAlias); found != nil {
+				return found
+			}
 		}
 	}
 	return nil
@@ -73,13 +76,13 @@ func main() {
 	}
 
 	// login by alias
-	if len(os.Args) > 1 {
-		var nodeAlias = os.Args[1]
+	args := flag.Args()
+	if len(args) > 0 {
+		var nodeAlias = args[0]
 		var nodes = sshw.GetConfig()
 		var node = findAlias(nodes, nodeAlias)
 		if node != nil {
-			client := sshw.NewClient(node)
-			client.Login()
+			connect(node)
 			return
 		}
 	}
@@ -89,8 +92,19 @@ func main() {
 		return
 	}
 
-	client := sshw.NewClient(node)
-	client.Login()
+	connect(node)
+}
+
+func connect(node *sshw.Node) {
+	if *F {
+		client := sshw.NewSFTPClient(node)
+		if err := client.Run(); err != nil {
+			log.Error(err)
+		}
+		return
+	}
+
+	sshw.NewClient(node).Login()
 }
 
 func choose(parent, trees []*sshw.Node) *sshw.Node {

@@ -8,8 +8,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -214,61 +212,14 @@ func (c *defaultClient) close() {
 }
 
 func (c *defaultClient) Login() {
-	defer c.close()
-
-	host := c.node.Host
-	port := strconv.Itoa(c.node.port())
-	jNodes := c.node.Jump
-
-	var client *ssh.Client
-
-	if len(jNodes) > 0 {
-		jNode := jNodes[0]
-		jc := genSSHConfig(jNode)
-		proxyClient, err := ssh.Dial("tcp", net.JoinHostPort(jNode.Host, strconv.Itoa(jNode.port())), jc.clientConfig)
-		if err != nil {
-			l.Error(err)
-			return
-		}
-		conn, err := proxyClient.Dial("tcp", net.JoinHostPort(host, port))
-		if err != nil {
-			l.Error(err)
-			return
-		}
-		ncc, chans, reqs, err := ssh.NewClientConn(conn, net.JoinHostPort(host, port), c.clientConfig)
-		if err != nil {
-			l.Error(err)
-			return
-		}
-		client = ssh.NewClient(ncc, chans, reqs)
-	} else {
-		client1, err := ssh.Dial("tcp", net.JoinHostPort(host, port), c.clientConfig)
-		client = client1
-		if err != nil {
-			msg := err.Error()
-			// use terminal password retry
-			if strings.Contains(msg, "no supported methods remain") && !strings.Contains(msg, "password") {
-				fmt.Printf("%s@%s's password:", c.clientConfig.User, host)
-				var b []byte
-				b, err = terminal.ReadPassword(int(syscall.Stdin))
-				if err == nil {
-					p := string(b)
-					if p != "" {
-						c.clientConfig.Auth = append(c.clientConfig.Auth, ssh.Password(p))
-					}
-					fmt.Println()
-					client, err = ssh.Dial("tcp", net.JoinHostPort(host, port), c.clientConfig)
-				}
-			}
-		}
-		if err != nil {
-			l.Error(err)
-			return
-		}
+	client, cleanup, err := c.connect()
+	if err != nil {
+		l.Error(err)
+		return
 	}
-	defer client.Close()
+	defer cleanup()
 
-	l.Infof("connect server ssh -p %d %s@%s version: %s\n", c.node.port(), c.node.user(), host, string(client.ServerVersion()))
+	l.Infof("connect server ssh -p %d %s@%s version: %s\n", c.node.port(), c.node.user(), c.node.Host, string(client.ServerVersion()))
 
 	session, err := client.NewSession()
 	if err != nil {
